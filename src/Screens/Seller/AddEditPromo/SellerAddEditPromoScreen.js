@@ -13,6 +13,8 @@ import { getPromotions } from "../../SharedComponents/SellerInitialization";
 
 import ImageTapToUpload from "../../../assets/Tap_To_Select.png";
 
+var fileImage = null;
+
 export default function SellerAddEditPromoScreen({ promo }) {
 	const history = useHistory();
 	const location = useLocation();
@@ -48,6 +50,7 @@ export default function SellerAddEditPromoScreen({ promo }) {
 
 	function uploadImage(event) {
 		const file = event.target.files[0];
+		fileImage = file;
 		const reader = new FileReader();
 		const url = reader.readAsDataURL(file);
 		reader.onloadend = () => {
@@ -55,22 +58,21 @@ export default function SellerAddEditPromoScreen({ promo }) {
 		};
 	}
 
-	const storeImage = async (image, id) => {
-		console.log("store image in add edit promo");
+	async function storeImage(id) {
+		console.log(id);
+		if (fileImage === null) return;
 		const data = await new FormData();
-		var blob = await new Blob([image], { type: "img/png" });
-		data.append("image", blob);
+		console.log(API_URL + PROMO_IMAGE + id);
+		await data.append("image", fileImage);
 		const rawResponse = await fetch(API_URL + PROMO_IMAGE + id, {
 			method: "POST",
 			headers: {
 				Authorization: localStorage.getItem("accessToken"),
 			},
-			body: {
-				body: data,
-			},
+			body: data,
 		});
 		console.log(`Promo image upload status code: ${rawResponse.status}`);
-	};
+	}
 
 	const handleAddPromo = async () => {
 		const isAnyNotFilled =
@@ -111,8 +113,11 @@ export default function SellerAddEditPromoScreen({ promo }) {
 				store_ids: storeIds,
 			}),
 		});
+
 		if (rawResponse.status === 200) {
 			await getPromotions();
+			const result = await rawResponse.json();
+			await storeImage(result.promotion_id);
 			history.goBack();
 		} else {
 			alert("Unable to create.");
@@ -160,13 +165,14 @@ export default function SellerAddEditPromoScreen({ promo }) {
 				store_ids: storeIds,
 			}),
 		});
+
 		if (rawResponse.status === 200) {
-			alert("Update success.");
+			await storeImage(promo.promotion_id);
 			await updateLocal(storeIds, date);
 			history.goBack();
 			history.goBack();
 		} else {
-			alert("Unable to create.");
+			alert("Unable to update.");
 		}
 	};
 
@@ -181,7 +187,6 @@ export default function SellerAddEditPromoScreen({ promo }) {
 		for (let i = 0; i < currentPromotions.length; i++) {
 			if (currentPromotions[i].promotion_id == promo.promotion_id) {
 				index = i;
-				console.log(index);
 				break;
 			}
 		}
@@ -261,11 +266,8 @@ export default function SellerAddEditPromoScreen({ promo }) {
 								location.state.isEdit
 							) {
 								handleEditPromo();
-								//storeImage(image);
 							} else {
-								handleAddPromo().then((id) =>
-									storeImage(image, id)
-								);
+								handleAddPromo();
 							}
 						}}
 					>
